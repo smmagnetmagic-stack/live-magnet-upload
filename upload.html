@@ -1,0 +1,107 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Live Magnet — Photo Upload</title>
+<style>
+  :root{--card:#111318;--muted:#b7bec7;--accent:#22c55e;--ink:#e7edf3;--bg:#0b0c10}
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;background:var(--bg);color:var(--ink);font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif}
+  .wrap{max-width:760px;margin:0 auto}
+  .card{background:var(--card);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  h1{margin:0 0 8px} p.sub{margin:0 0 18px;color:var(--muted)}
+  label{display:block;margin:14px 0 8px;font-weight:600}
+  input[type="text"],input[type="tel"],select{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.12);background:#0b0f16;color:#f4f7fb;outline:none}
+  input[type="file"]{width:100%;padding:12px;border-radius:12px;border:1px dashed rgba(255,255,255,.18);background:#0b0f16;color:#f4f7fb}
+  .btn{display:inline-block;margin-top:18px;padding:12px 18px;border-radius:12px;border:0;cursor:pointer;background:var(--accent);color:#0b0c10;font-weight:700}
+  .preview{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .thumb{width:84px;height:84px;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+  .thumb img{width:100%;height:100%;object-fit:cover}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px}
+  .msg{margin-top:14px;color:#ddd}
+</style>
+
+<div class="wrap">
+  <div class="card">
+    <h1>Upload Photos</h1>
+    <p class="sub">Add your details, choose your location, and upload images. You'll get a numeric token after submit.</p>
+
+    <form id="uploadForm" method="post" enctype="multipart/form-data" class="form">
+      <div style="display:grid;grid-template-columns:1fr;gap:16px">
+        <div>
+          <label for="name">Full Name</label>
+          <input id="name" name="name" type="text" placeholder="e.g., Apeksha Sharma" required>
+        </div>
+        <div>
+          <label for="phone">Mobile Number</label>
+          <input id="phone" name="phone" type="tel" placeholder="e.g., 98765 43210" required>
+          <div class="hint">Folder will be named <i>Name_Number</i>.</div>
+        </div>
+      </div>
+
+      <label for="location">Location (stall)</label>
+      <select id="location" name="location" required>
+        <option value="">Loading locations…</option>
+      </select>
+
+      <label for="files">Photos</label>
+      <input id="files" name="files" type="file" accept="image/*" multiple required>
+      <div id="preview" class="preview"></div>
+
+      <button class="btn" type="submit">Upload</button>
+      <div class="hint">After submit, a numeric token (YYMMDDNNN) will be shown and saved in our log.</div>
+      <div id="msg" class="msg"></div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Your Apps Script /exec base
+  const EXEC = "https://script.google.com/macros/s/AKfycby4smJw9yEFmRnud2rhMYYBlUeqsqG0lhfwPS6pRnVxf7SIK2FeUyj85RQZGmokBRDQ/exec";
+
+  // ---- Load locations via JSONP (no CORS issues) ----
+  function fillLocations(list){
+    const sel = document.getElementById('location');
+    sel.innerHTML = '<option value="">Select location…</option>';
+    (list||[]).forEach(x => {
+      const opt = document.createElement('option');
+      opt.value = x.name;
+      opt.textContent = x.name;
+      sel.appendChild(opt);
+    });
+  }
+  const s = document.createElement('script');
+  s.src = EXEC + "?p=locations&callback=fillLocations";
+  s.async = true;
+  s.onerror = function(){ document.getElementById('location').innerHTML = '<option value="">(failed to load)</option>'; };
+  document.head.appendChild(s);
+
+  // Thumbnails
+  const filesInput = document.getElementById('files');
+  const preview = document.getElementById('preview');
+  filesInput.addEventListener('change', () => {
+    preview.innerHTML = '';
+    const files = Array.from(filesInput.files || []);
+    files.slice(0, 40).forEach(file => {
+      if (!file.type.startsWith('image/')) return;
+      const url = URL.createObjectURL(file);
+      const div = document.createElement('div');
+      div.className = 'thumb';
+      div.innerHTML = `<img src="${url}">`;
+      preview.appendChild(div);
+    });
+  });
+
+  // Ensure correct route and basic validation
+  const form = document.getElementById('uploadForm');
+  form.action = EXEC + "?p=upload";
+  form.addEventListener('submit', (e) => {
+    const n = document.getElementById('name').value.trim();
+    const p = document.getElementById('phone').value.trim();
+    const l = document.getElementById('location').value.trim();
+    const f = filesInput.files?.length || 0;
+    if (!n || !p || !l || f === 0) {
+      e.preventDefault();
+      alert('Please fill Name, Mobile, Location and select at least one image.');
+    }
+  });
+</script>
