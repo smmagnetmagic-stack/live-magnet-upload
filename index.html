@@ -61,6 +61,10 @@
   // ---- Load locations via JSONP (no CORS issues) ----
   function fillLocations(list){
     const sel = document.getElementById('location');
+    if (list && list.error) {
+       sel.innerHTML = `<option value="">(Error: ${list.error})</option>`;
+       return;
+    }
     sel.innerHTML = '<option value="">Select location…</option>';
     (list||[]).forEach(x => {
       const opt = document.createElement('option');
@@ -91,17 +95,57 @@
     });
   });
 
-  // Ensure correct route and basic validation
+  // ---- NEW: Handle form submission with fetch ----
   const form = document.getElementById('uploadForm');
-  form.action = EXEC + "?p=upload";
+  const msgDiv = document.getElementById('msg');
+  const submitBtn = document.querySelector('.btn');
+  
+  // Set action URL, but we will override submit
+  form.action = EXEC + "?p=upload"; 
+
   form.addEventListener('submit', (e) => {
-    const n = document.getElementById('name').value.trim();
-    const p = document.getElementById('phone').value.trim();
-    const l = document.getElementById('location').value.trim();
-    const f = filesInput.files?.length || 0;
-    if (!n || !p || !l || f === 0) {
-      e.preventDefault();
+    // 1. Stop the default page reload
+    e.preventDefault();
+
+    // 2. Basic validation
+    if (!form.checkValidity()) {
       alert('Please fill Name, Mobile, Location and select at least one image.');
+      return;
     }
+
+    // 3. Show a loading message and disable button
+    msgDiv.textContent = 'Uploading, please wait...';
+    msgDiv.style.color = 'var(--muted)';
+    submitBtn.disabled = true;
+
+    // 4. Submit the data using fetch
+    const formData = new FormData(form);
+    
+    fetch(form.action, {
+      method: 'POST',
+      body: formData,
+    })
+    .then(response => response.text()) // Get the token (as text) from Apps Script
+    .then(result => {
+      // Check if the result is an error message
+      if (result.startsWith('Error:')) {
+        throw new Error(result);
+      }
+      
+      // SUCCESS!
+      msgDiv.textContent = '✅ Success! Your token is: ' + result;
+      msgDiv.style.color = 'var(--accent)';
+      form.reset(); // Clear the form
+      preview.innerHTML = ''; // Clear thumbnails
+      submitBtn.disabled = false;
+      
+    })
+    .catch(error => {
+      // FAILURE!
+      console.error('Error:', error);
+      msgDiv.textContent = '⚠️ ' + error.message;
+      msgDiv.style.color = '#e53e3e'; // Red
+      submitBtn.disabled = false;
+    });
   });
 </script>
